@@ -21,4 +21,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "Currency Exchange"
 include(":app")
- 
+include(":domain")
+include(":data")
+include(":presentation")

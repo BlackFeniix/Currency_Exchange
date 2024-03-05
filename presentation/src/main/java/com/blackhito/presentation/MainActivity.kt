@@ -1,4 +1,4 @@
-package com.blackhito.currencyexchange
+package com.blackhito.presentation
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
