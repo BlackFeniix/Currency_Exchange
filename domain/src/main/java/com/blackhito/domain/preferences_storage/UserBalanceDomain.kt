@@ -7,3 +7,14 @@ data class UserBalanceDomain(
     val rsdCurrency: Double,
     val cadCurrency: Double
 )
+
+fun UserBalanceDomain.getBalanceFromCharCode(charCode: String): Double {
+    return when (charCode) {
+        "USD" -> usdCurrency
+        "JPY" -> jpyCurrency
+        "TRY" -> tryCurrency
+        "RSD" -> rsdCurrency
+        "CAD" -> cadCurrency
+        else -> 0.0
+    }
+}

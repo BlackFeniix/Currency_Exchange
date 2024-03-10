@@ -7,11 +7,11 @@ import android.view.ViewGroup
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import com.blackhito.domain.preferences_storage.getBalanceFromCharCode
 import com.blackhito.presentation.R
 import com.blackhito.presentation.databinding.FragmentCurrencyBinding
 import com.blackhito.presentation.util.Utils
 import com.blackhito.presentation.viewmodels.CurrencyViewModel
-import com.blackhito.presentation.viewpager.FirstViewPagerAdapter.Companion.POSITION_FRAGMENT
 
 class CurrencyFirstFragment : Fragment() {
     private lateinit var binding: FragmentCurrencyBinding
@@ -22,40 +22,48 @@ class CurrencyFirstFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentCurrencyBinding.inflate(layoutInflater, container, false)
-        binding.textViewSign.text = "-"
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        arguments?.takeIf { it.containsKey(POSITION_FRAGMENT) }?.apply {
-            val position = getInt(POSITION_FRAGMENT)
-            viewModel.updatePosition(position, CurrencyViewModel.FIRST_WINDOW)
-
-            viewModel.firstCurrencyPresentation.observe(viewLifecycleOwner) {
-                binding.currencyName.text = it.charCode
-                binding.currencyUserAmount.text = getString(
-                    R.string.current_amount_currency,
-                    it.userBalance,
-                    Utils.getCurrencySymbol(it.charCode)
-                )
-                binding.changeRatio.text = getString(
-                    R.string.exchange_rate,
-                    Utils.getCurrencySymbol(it.charCode),
-                    viewModel.currentExchangeRatioFirst.value?.toDouble(),
-                    Utils.getCurrencySymbol(viewModel.secondCurrencyPresentation.value?.charCode)
-                )
-                if (it.userInputAmount!=0.0) {
-                    binding.textViewSign.visibility = View.VISIBLE
-                    binding.currencyAmount.setText(it.userInputAmount.toString())
-                } else
-                    binding.textViewSign.visibility = View.INVISIBLE
-            }
+        binding.textViewSign.text = getString(R.string.minus_sign)
+        viewModel.lowerCurrency.observe(viewLifecycleOwner) {
+            binding.changeRatio.text = getString(
+                R.string.exchange_rate,
+                Utils.getCurrencySymbol(viewModel.upperCurrency.value?.charCode),
+                viewModel.upperToLowerRatio,
+                Utils.getCurrencySymbol(it.charCode)
+            )
+        }
+        viewModel.upperCurrency.observe(viewLifecycleOwner) {
+            binding.currencyName.text = it.charCode
+            binding.currencyUserAmount.text = getString(
+                R.string.current_currency_balance,
+                viewModel.userBalance.getBalanceFromCharCode(it.charCode),
+                Utils.getCurrencySymbol(it.charCode)
+            )
+            binding.changeRatio.text = getString(
+                R.string.exchange_rate,
+                Utils.getCurrencySymbol(it.charCode),
+                viewModel.upperToLowerRatio,
+                Utils.getCurrencySymbol(viewModel.lowerCurrency.value?.charCode)
+            )
         }
 
+        viewModel.userUpperInput.observe(viewLifecycleOwner) {
+            if (it.isEmpty())
+                binding.textViewSign.visibility = View.INVISIBLE
+            else
+                binding.textViewSign.visibility = View.VISIBLE
+            if (binding.currencyAmount.text.toString() != it)
+                binding.currencyAmount.setText(it)
+        }
 
         binding.currencyAmount.doAfterTextChanged {
-            //viewModel.change
+            viewModel.upperFieldInput = it.toString()
+            viewModel.updateInputField(true)
+            binding.currencyAmount.setSelection(it.toString().length)
         }
     }
 }

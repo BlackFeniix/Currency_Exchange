@@ -1,226 +1,239 @@
 package com.blackhito.presentation.viewmodels
 
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.blackhito.domain.CurrencyRepository
 import com.blackhito.domain.NetworkState
-import com.blackhito.domain.currency.CurrencyListDomain
+import com.blackhito.domain.preferences_storage.PreferencesStorage
+import com.blackhito.domain.preferences_storage.getBalanceFromCharCode
+import com.blackhito.presentation.R
 import com.blackhito.presentation.model.CurrencyPresentation
-import com.blackhito.presentation.model.TransactionStatus
 import com.blackhito.presentation.model.toPresentation
-import com.blackhito.presentation.util.PreferencesStorageImpl
+import com.blackhito.presentation.util.Utils
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableSharedFlow
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class CurrencyViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val repository: CurrencyRepository,
-    private val prefStorage: PreferencesStorageImpl
+    private val prefStorage: PreferencesStorage
 ) : ViewModel() {
-
-    private val _currencyListLiveData = MutableStateFlow(CurrencyListDomain(emptyMap()))
-
-    private val _firstCurrencyPresentation = MutableLiveData<CurrencyPresentation>()
-    val firstCurrencyPresentation: LiveData<CurrencyPresentation>
-        get() = _firstCurrencyPresentation
-
-    private val _secondCurrencyPresentation = MutableLiveData<CurrencyPresentation>()
-    val secondCurrencyPresentation: LiveData<CurrencyPresentation>
-        get() = _secondCurrencyPresentation
-
-    private val _currentExchangeRatioFirst = MutableLiveData<Double>()
-    val currentExchangeRatioFirst: LiveData<Double>
-        get() = _currentExchangeRatioFirst
-
-    private val _currentExchangeRatioSecond = MutableLiveData(0.0)
-    val currentExchangeRatioSecond: LiveData<Double>
-        get() = _currentExchangeRatioSecond
-
-    private var firstList: MutableList<CurrencyPresentation> = mutableListOf()
-    private var secondList: MutableList<CurrencyPresentation> = mutableListOf()
-
-    private var firstActivePosition = 0
-    private var secondActivePosition = 0
-
-    private var userBalance = prefStorage.getUserBalance()
 
     private val _networkStateFlow = MutableStateFlow<NetworkState>(NetworkState.NetworkDownload())
     val networkStateFlow: StateFlow<NetworkState>
         get() = _networkStateFlow.asStateFlow()
 
-    private val _transactionStatus = MutableSharedFlow<TransactionStatus>()
-    val transactionStatus: SharedFlow<TransactionStatus>
-        get() = _transactionStatus.asSharedFlow()
+    private val _listCurrency = MutableLiveData<List<CurrencyPresentation>>()
+    val listCurrency: LiveData<List<CurrencyPresentation>> = _listCurrency
+
+    private val _upperCurrency = MutableLiveData<CurrencyPresentation>()
+    val upperCurrency: LiveData<CurrencyPresentation> = _upperCurrency
+
+    private val _lowerCurrency = MutableLiveData<CurrencyPresentation>()
+    val lowerCurrency: LiveData<CurrencyPresentation> = _lowerCurrency
+
+    private val _textNotification = MutableLiveData<String>()
+    val textNotification: LiveData<String> = _textNotification
+
+    var upperPosition: Int = 0
+    var lowerPosition: Int = 0
+
+    var upperToLowerRatio = 0.0
+    var lowerToUpperRatio = 0.0
+
+    var upperFieldInput = ""
+    var lowerFieldInput = ""
+
+    private val _upperFieldInput = MutableLiveData("")
+    val userUpperInput: LiveData<String> = _upperFieldInput
+    private val _lowerFieldInput = MutableLiveData("")
+    val userLowerInput: LiveData<String> = _lowerFieldInput
 
 
-    fun loadCurrencyFromNetwork() {
-        viewModelScope.launch {
-            try {
-                val currencyListDomain = repository.loadCurrency()
-                    .valutes.filterKeys {
-                        currencyListName.contains(
-                            it
-                        )
-                    }
-                if (currencyListDomain.isNotEmpty()) {
+    var userBalance = prefStorage.getUserBalance()
 
-                    firstList.addAll(currencyListDomain.values.map { it.toPresentation() })
-                    secondList.addAll(currencyListDomain.values.map { it.toPresentation() })
+    fun updateAllDataRegularly() = viewModelScope.launch {
+        loadCurrencyFromNetwork()
+        while (true) {
+            delay(30000)
 
-                    updateExchangeRatio()
-                    _networkStateFlow.value = NetworkState.NetworkSuccess()
-                } else {
-                    _networkStateFlow.value = NetworkState.NetworkError()
-                }
+            val listOfCurrency =
+                repository.loadCurrency()
+                    .valutes.filterKeys { currencyListName.contains(it) }
+                    .values.map { it.toPresentation() }
 
-            } catch (e: Exception) {
-                _networkStateFlow.value = NetworkState.NetworkError()
-            }
+            Log.e("LOG", listOfCurrency.toString())
+            _listCurrency.value = listOfCurrency
+
+            updateCurrencyFromList()
+            updateRatio(listCurrency.value?.get(0), listCurrency.value?.get(0))
         }
     }
 
-    fun getUserBalance() {
-        userBalance = prefStorage.getUserBalance()
+    private fun updateRatio(
+        upperNewValue: CurrencyPresentation?,
+        lowerNewValue: CurrencyPresentation?
+    ) {
+        val upperBaseValue = upperNewValue?.baseValue?.toDouble() ?: 0.0
+        val lowerBaseValue = lowerNewValue?.baseValue?.toDouble() ?: 0.0
+        upperToLowerRatio = String.format("%.2f", upperBaseValue / lowerBaseValue).toDouble()
+        lowerToUpperRatio = String.format("%.2f", lowerBaseValue / upperBaseValue).toDouble()
     }
 
-    fun updateUserBalance() = viewModelScope.launch {
-        firstCurrencyPresentation.value?.let {
-            if (it.charCode == secondCurrencyPresentation.value?.charCode) {
-                _transactionStatus.emit(TransactionStatus.ErrorSameCurrency)
-                return@launch
-            }
-            if (it.userInputAmount == 0.0) {
-                _transactionStatus.emit(TransactionStatus.ErrorEmptyFields)
-            }
-
-            if (it.userBalance < it.userInputAmount)
-                _transactionStatus.emit(TransactionStatus.ErrorNotEnoughCurrency)
+    fun updateInputField(isFocusOnFirstWindow: Boolean) {
+        Log.e("LOG", "$upperFieldInput $lowerFieldInput")
+        if (isFocusOnFirstWindow) {
+            lowerFieldInput = if (upperFieldInput.isEmpty())
+                ""
             else {
-                calculateUpdateForBalance()
-
-                _transactionStatus.emit(TransactionStatus.Success(listOf("fdf")))
-                prefStorage.updateUserBalance(userBalance)
-                updateExchangeRatio()
+                String.format("%.2f",upperFieldInput.toDouble() * upperToLowerRatio)
             }
+            _lowerFieldInput.postValue(lowerFieldInput)
+        } else {
+            upperFieldInput = if (lowerFieldInput.isEmpty())
+                ""
+            else {
+                String.format("%.2f",lowerFieldInput.toDouble() * lowerToUpperRatio)
+            }
+            _upperFieldInput.postValue(upperFieldInput)
+        }
+        Log.e("LOG", "$upperFieldInput $lowerFieldInput")
+    }
+
+    private fun loadCurrencyFromNetwork() = viewModelScope.launch {
+        val listOfCurrency =
+            repository.loadCurrency()
+                .valutes.filterKeys { currencyListName.contains(it) }
+                .values.map { it.toPresentation() }
+
+        Log.e("LOG", listOfCurrency.toString())
+        _listCurrency.value = listOfCurrency
+
+        updateCurrencyFromList()
+        if (_networkStateFlow.value != NetworkState.NetworkSuccess())
+            _networkStateFlow.value = NetworkState.NetworkSuccess()
+    }
+
+    private fun updateBalance() {
+        prefStorage.updateUserBalance(userBalance)
+        _upperCurrency.value = _upperCurrency.value?.copy()
+        _lowerCurrency.value = _lowerCurrency.value?.copy()
+    }
+
+    fun checkRequirementsForTransaction() {
+        val upperCurrency = upperCurrency.value ?: emptyCurrency
+        val lowerCurrency = lowerCurrency.value ?: emptyCurrency
+        if (upperCurrency.charCode == lowerCurrency.charCode) {
+            _textNotification.value = appContext.getString(R.string.error_exchange_same_currency)
+            return
+        }
+
+        if (upperFieldInput.isEmpty()) {
+            _textNotification.value =
+                appContext.getString(R.string.error_exchange_empty_input_field)
+            return
+        }
+
+        if (userBalance.getBalanceFromCharCode(upperCurrency.charCode) < upperFieldInput.toDouble()) {
+            _textNotification.value =
+                appContext.getString(R.string.error_exchange_insufficient_funds)
+            return
+        } else {
+            //ok, change values and updateBalance
+            val newUpperBalance = userBalance.getBalanceFromCharCode(upperCurrency.charCode) -
+                    upperFieldInput.toDouble()
+            val newLowerBalance = userBalance.getBalanceFromCharCode(lowerCurrency.charCode) +
+                    lowerFieldInput.toDouble()
+            getBalanceCopyWithNewValue(upperCurrency.charCode, newUpperBalance)
+            getBalanceCopyWithNewValue(lowerCurrency.charCode, newLowerBalance)
+
+            updateBalance()
+
+            val statusMessage = StringBuilder()
+                .append(
+                    appContext.getString(
+                        R.string.success_exchange,
+                        Utils.getCurrencySymbol(upperCurrency.charCode),
+                        upperFieldInput,
+                        upperCurrency.charCode,
+                        newUpperBalance
+                    )
+                )
+                .appendLine("")
+                .appendLine("Available accounts:")
+                .appendLine("USD: ${Utils.getCurrencySymbol("USD")}${userBalance.usdCurrency}")
+                .appendLine("JPY: ${Utils.getCurrencySymbol("JPY")}${userBalance.jpyCurrency}")
+                .appendLine("TRY: ${Utils.getCurrencySymbol("TRY")}${userBalance.tryCurrency}")
+                .appendLine("RSD: ${Utils.getCurrencySymbol("RSD")}${userBalance.rsdCurrency}")
+                .appendLine("CAD: ${Utils.getCurrencySymbol("CAD")}${userBalance.cadCurrency}")
+                .toString()
+
+            _textNotification.value = statusMessage
+            _upperFieldInput.value = ""
+            _lowerFieldInput.value = ""
         }
     }
 
-    private fun calculateUpdateForBalance() {
-        val firstCurrency = firstCurrencyPresentation.value
-        val secondCurrency = secondCurrencyPresentation.value
-        userBalance = when (firstCurrency?.charCode) {
-            "USD" -> {
-                val newValue = prefStorage.getUserBalance().usdCurrency - firstCurrency.userInputAmount
-                userBalance.copy(usdCurrency = newValue)
-            }
+    private fun getBalanceCopyWithNewValue(
+        charCode: String,
+        newCurrencyValue: Double
+    ) {
+        userBalance = when (charCode) {
+            "USD" -> userBalance.copy(usdCurrency = newCurrencyValue)
 
-            "JPY" -> {
-                val newValue = prefStorage.getUserBalance().jpyCurrency - firstCurrency.userInputAmount
-                userBalance.copy(jpyCurrency = newValue)
-            }
+            "JPY" -> userBalance.copy(jpyCurrency = newCurrencyValue)
 
-            "TRY" -> {
-                val newValue = prefStorage.getUserBalance().tryCurrency - firstCurrency.userInputAmount
-                userBalance.copy(tryCurrency = newValue)
-            }
+            "TRY" -> userBalance.copy(tryCurrency = newCurrencyValue)
 
-            "RSD" -> {
-                val newValue = prefStorage.getUserBalance().rsdCurrency - firstCurrency.userInputAmount
-                userBalance.copy(rsdCurrency = newValue)
-            }
+            "RSD" -> userBalance.copy(rsdCurrency = newCurrencyValue)
 
-            "CAD" -> {
-                val newValue = prefStorage.getUserBalance().cadCurrency - firstCurrency.userInputAmount
-                userBalance.copy(cadCurrency = newValue)
-            }
+            "CAD" -> userBalance.copy(cadCurrency = newCurrencyValue)
+
             else -> userBalance
         }
-
-        userBalance = when (secondCurrency?.charCode) {
-            "USD" -> {
-                val newValue = prefStorage.getUserBalance().usdCurrency + secondCurrency.userInputAmount
-                userBalance.copy(usdCurrency = newValue)
-            }
-
-            "JPY" -> {
-                val newValue = prefStorage.getUserBalance().jpyCurrency + secondCurrency.userInputAmount
-                userBalance.copy(jpyCurrency = newValue)
-            }
-
-            "TRY" -> {
-                val newValue = prefStorage.getUserBalance().tryCurrency + secondCurrency.userInputAmount
-                userBalance.copy(tryCurrency = newValue)
-            }
-
-            "RSD" -> {
-                val newValue = prefStorage.getUserBalance().rsdCurrency + secondCurrency.userInputAmount
-                userBalance.copy(rsdCurrency = newValue)
-            }
-
-            "CAD" -> {
-                val newValue = prefStorage.getUserBalance().cadCurrency + secondCurrency.userInputAmount
-                userBalance.copy(cadCurrency = newValue)
-            }
-            else -> userBalance
-        }
     }
 
-    private fun updateExchangeRatio() {
-        val firstCurrency = firstList[firstActivePosition].also {
-            it.userBalance = when (it.charCode) {
-                "USD" -> userBalance.usdCurrency
-                "JPY" -> userBalance.jpyCurrency
-                "TRY" -> userBalance.tryCurrency
-                "RSD" -> userBalance.rsdCurrency
-                "CAD" -> userBalance.cadCurrency
-                else -> 0.0
-            }
-        }
-        val secondCurrency = secondList[secondActivePosition].also {
-            it.userBalance = when (it.charCode) {
-                "USD" -> userBalance.usdCurrency
-                "JPY" -> userBalance.jpyCurrency
-                "TRY" -> userBalance.tryCurrency
-                "RSD" -> userBalance.rsdCurrency
-                "CAD" -> userBalance.cadCurrency
-                else -> 0.0
-            }
+    fun updatePosition(newPosition: Int, isUpperWindow: Boolean) {
+        if (isUpperWindow) {
+            upperPosition = newPosition
+            updateRatio(
+                listCurrency.value?.get(upperPosition),
+                listCurrency.value?.get(lowerPosition)
+            )
+            _upperCurrency.value = listCurrency.value?.get(upperPosition)
+        } else {
+            lowerPosition = newPosition
+            updateRatio(
+                listCurrency.value?.get(upperPosition),
+                listCurrency.value?.get(lowerPosition)
+            )
+            _lowerCurrency.value = listCurrency.value?.get(lowerPosition)
         }
 
-        _currentExchangeRatioFirst.value =
-            firstCurrency.exchangeRatio.toDouble() / secondCurrency.exchangeRatio.toDouble()
-
-        _currentExchangeRatioSecond.value =
-            secondCurrency.exchangeRatio.toDouble() / firstCurrency.exchangeRatio.toDouble()
-
-        _firstCurrencyPresentation.value = firstCurrency
-        _secondCurrencyPresentation.value = secondCurrency
-
+        //updateInputField(!isUpperWindow)
     }
 
-    fun updatePosition(newPosition: Int, flag: String) {
-        when (flag) {
-            FIRST_WINDOW -> firstActivePosition = newPosition
-            SECOND_WINDOW -> secondActivePosition = newPosition
-            else -> {}
-        }
-        updateExchangeRatio()
+    private fun updateCurrencyFromList() {
+        _upperCurrency.value = listCurrency.value?.get(upperPosition)
+        _lowerCurrency.value = listCurrency.value?.get(lowerPosition)
     }
 
     companion object {
         val currencyListName = listOf(
             "USD", "JPY", "TRY", "RSD", "CAD"
         )
-        const val FIRST_WINDOW = "FIRST_WINDOW"
-        const val SECOND_WINDOW = "SECOND_WINDOW"
+
+        val emptyCurrency = CurrencyPresentation("", "", "")
     }
 }

@@ -1,9 +1,12 @@
 <resources>
     <string name="default_amount">0.00</string>
-    <string name="error_exchange">Insufficient funds for replenishment</string>
-    <string name="success_exchange">Receipt $57.82 to account EUR. Available balance: $102.21</string>
-    <string name="current_amount_currency">You have: %1$.2f%2$s</string>
+    <string name="error_exchange_same_currency">Error, choose different currencies</string>
+    <string name="error_exchange_empty_input_field">Error, you must enter value in field for exchange</string>
+    <string name="error_exchange_insufficient_funds">Insufficient funds for replenishment</string>
+    <string name="success_exchange">Receipt %1$s%2$s to account %3$s. Available balance: %1$s%4$.2f</string>
+    <string name="current_currency_balance">You have: %1$.2f%2$s</string>
     <string name="exchange_rate">1%1$s = %2$.2f%3$s</string>
     <string name="exchange">Exchange</string>
     <string name="plus_sign">+</string>
+    <string name="minus_sign">-</string>
 </resources>

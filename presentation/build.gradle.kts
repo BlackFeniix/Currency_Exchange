@@ -42,7 +42,6 @@ dependencies {
     implementation(libs.androidx.viewpager2)
     implementation(libs.dagger.hilt)
     kapt(libs.dagger.hilt.compiler)
-    implementation(libs.androidx.datastore)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
