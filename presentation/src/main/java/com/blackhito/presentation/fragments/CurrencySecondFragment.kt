@@ -27,6 +27,7 @@ class CurrencySecondFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.textViewSign.text = getString(R.string.plus_sign)
         viewModel.upperCurrency.observe(viewLifecycleOwner) {
             binding.changeRatio.text = getString(
                 R.string.exchange_rate,
@@ -48,20 +49,21 @@ class CurrencySecondFragment : Fragment() {
                 viewModel.lowerToUpperRatio,
                 Utils.getCurrencySymbol(viewModel.upperCurrency.value?.charCode)
             )
-            if (viewModel.lowerFieldInput.isNotEmpty()) {
-                binding.currencyAmount.setText(viewModel.lowerFieldInput)
-            }
         }
 
         viewModel.userLowerInput.observe(viewLifecycleOwner) {
+            if (it.isEmpty())
+                binding.textViewSign.visibility = View.INVISIBLE
+            else
+                binding.textViewSign.visibility = View.VISIBLE
             if (binding.currencyAmount.text.toString() != it)
                 binding.currencyAmount.setText(it)
         }
 
         binding.currencyAmount.doAfterTextChanged {
-            binding.currencyAmount.setSelection(it.toString().length)
             viewModel.lowerFieldInput = it.toString()
             viewModel.updateInputField(false)
+            binding.currencyAmount.setSelection(it.toString().length)
         }
 
     }
