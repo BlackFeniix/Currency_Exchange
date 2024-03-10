@@ -1,6 +1,7 @@
 package com.blackhito.presentation.fragments
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,12 +14,10 @@ import androidx.viewpager2.widget.ViewPager2
 import com.blackhito.domain.NetworkState
 import com.blackhito.presentation.R
 import com.blackhito.presentation.databinding.FragmentCurrencyChangeBinding
-import com.blackhito.presentation.model.TransactionStatus
 import com.blackhito.presentation.util.Utils
 import com.blackhito.presentation.viewmodels.CurrencyViewModel
 import com.blackhito.presentation.viewpager.FirstViewPagerAdapter
 import com.blackhito.presentation.viewpager.SecondViewPagerAdapter
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -43,19 +42,20 @@ class CurrencyChangeFragment : Fragment() {
                 viewModel.networkStateFlow.collect {
                     when (it) {
                         is NetworkState.NetworkDownload -> {
-                            binding.firstWindow.visibility = View.INVISIBLE
-                            binding.secondWindow.visibility = View.INVISIBLE
-                            binding.imageView.visibility = View.INVISIBLE
+                            binding.progressBar.visibility = View.VISIBLE
+                            binding.upperWindow.visibility = View.INVISIBLE
+                            binding.lowerWindow.visibility = View.INVISIBLE
+                            binding.imageViewArrow.visibility = View.INVISIBLE
                             binding.toolbarTitle.visibility = View.INVISIBLE
                             binding.toolbarButton.visibility = View.INVISIBLE
-                            viewModel.loadCurrencyFromNetwork()
-
+                            viewModel.updateAllDataRegularly()
                         }
 
                         is NetworkState.NetworkSuccess -> {
-                            binding.firstWindow.visibility = View.VISIBLE
-                            binding.secondWindow.visibility = View.VISIBLE
-                            binding.imageView.visibility = View.VISIBLE
+                            binding.progressBar.visibility = View.INVISIBLE
+                            binding.upperWindow.visibility = View.VISIBLE
+                            binding.lowerWindow.visibility = View.VISIBLE
+                            binding.imageViewArrow.visibility = View.VISIBLE
                             binding.toolbarTitle.visibility = View.VISIBLE
                             binding.toolbarButton.visibility = View.VISIBLE
                             showViewPager()
@@ -75,19 +75,21 @@ class CurrencyChangeFragment : Fragment() {
         secondViewPagerAdapter =
             SecondViewPagerAdapter(this)
 
-        viewPager = binding.firstWindow
-        viewPager2 = binding.secondWindow
+        viewPager = binding.upperWindow
+        viewPager2 = binding.lowerWindow
 
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                viewModel.updatePosition(position, CurrencyViewModel.FIRST_WINDOW)
+                Log.e("LOG", "Upper pager - $position")
+                viewModel.updatePosition(position, true)
             }
         })
         viewPager2.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                viewModel.updatePosition(position, CurrencyViewModel.SECOND_WINDOW)
+                Log.e("LOG", "Lower pager - $position")
+                viewModel.updatePosition(position,false)
             }
         })
 
@@ -95,46 +97,36 @@ class CurrencyChangeFragment : Fragment() {
         viewPager2.adapter = secondViewPagerAdapter
 
         binding.toolbarButton.setOnClickListener {
-            viewModel.updateUserBalance()
+            viewModel.checkRequirementsForTransaction()
         }
 
         lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.transactionStatus.collect {
-                    when (it) {
-                        is TransactionStatus.ErrorEmptyFields -> {
-
-                        }
-
-                        is TransactionStatus.ErrorNotEnoughCurrency -> {
-
-                        }
-
-                        is TransactionStatus.ErrorSameCurrency -> {
-
-                        }
-
-                        is TransactionStatus.Success -> {
-                            MaterialAlertDialogBuilder(requireContext())
-                                .setMessage("Success")
-                                .setCancelable(false)
-                                .setPositiveButton("ok") { _, _ ->
-                                }
-                                .show()
-                        }
-                    }
-                }
+            viewModel.textNotification.observe(viewLifecycleOwner) {
+                val exchangeDialogFragment = ExchangeDialogFragment(it)
+                exchangeDialogFragment.show(childFragmentManager, "alertDialog")
             }
         }
+
         lifecycleScope.launch {
-            viewModel.currentExchangeRatioFirst.observe(viewLifecycleOwner) {
+            viewModel.upperCurrency.observe(viewLifecycleOwner) {
                 binding.toolbarTitle.text = getString(
                     R.string.exchange_rate,
-                    Utils.getCurrencySymbol(viewModel.firstCurrencyPresentation.value?.charCode),
-                    viewModel.currentExchangeRatioFirst.value?.toDouble(),
-                    Utils.getCurrencySymbol(viewModel.secondCurrencyPresentation.value?.charCode)
+                    Utils.getCurrencySymbol(viewModel.upperCurrency.value?.charCode),
+                    viewModel.upperToLowerRatio,
+                    Utils.getCurrencySymbol(viewModel.lowerCurrency.value?.charCode)
                 )
             }
         }
+        lifecycleScope.launch {
+            viewModel.lowerCurrency.observe(viewLifecycleOwner) {
+                binding.toolbarTitle.text = getString(
+                    R.string.exchange_rate,
+                    Utils.getCurrencySymbol(viewModel.upperCurrency.value?.charCode),
+                    viewModel.upperToLowerRatio,
+                    Utils.getCurrencySymbol(viewModel.lowerCurrency.value?.charCode)
+                )
+            }
+        }
+
     }
 }
