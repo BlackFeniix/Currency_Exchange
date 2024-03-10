@@ -65,6 +65,5 @@ class CurrencySecondFragment : Fragment() {
             viewModel.updateInputField(false)
             binding.currencyAmount.setSelection(it.toString().length)
         }
-
     }
 }

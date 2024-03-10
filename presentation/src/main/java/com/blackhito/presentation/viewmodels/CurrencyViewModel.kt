@@ -135,20 +135,17 @@ class CurrencyViewModel @Inject constructor(
         val upperCurrency = upperCurrency.value ?: emptyCurrency
         val lowerCurrency = lowerCurrency.value ?: emptyCurrency
         if (upperCurrency.charCode == lowerCurrency.charCode) {
-            // same currency error
             _textNotification.value = appContext.getString(R.string.error_exchange_same_currency)
             return
         }
 
         if (upperFieldInput.isEmpty()) {
-            // empty field error
             _textNotification.value =
                 appContext.getString(R.string.error_exchange_empty_input_field)
             return
         }
 
         if (userBalance.getBalanceFromCharCode(upperCurrency.charCode) < upperFieldInput.toDouble()) {
-            // too big value for this currency
             _textNotification.value =
                 appContext.getString(R.string.error_exchange_insufficient_funds)
             return
@@ -163,7 +160,6 @@ class CurrencyViewModel @Inject constructor(
 
             updateBalance()
 
-            //Message about transaction
             val statusMessage = StringBuilder()
                 .append(
                     appContext.getString(
@@ -184,9 +180,6 @@ class CurrencyViewModel @Inject constructor(
                 .toString()
 
             _textNotification.value = statusMessage
-            // clear inputFields
-            upperFieldInput = ""
-            lowerFieldInput = ""
             _upperFieldInput.value = ""
             _lowerFieldInput.value = ""
         }
@@ -228,7 +221,7 @@ class CurrencyViewModel @Inject constructor(
             _lowerCurrency.value = listCurrency.value?.get(lowerPosition)
         }
 
-        updateInputField(!isUpperWindow)
+        //updateInputField(!isUpperWindow)
     }
 
     private fun updateCurrencyFromList() {
