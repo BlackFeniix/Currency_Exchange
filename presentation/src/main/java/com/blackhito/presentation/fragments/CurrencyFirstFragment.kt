@@ -1,10 +1,11 @@
 package com.blackhito.presentation.fragments
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.widget.doAfterTextChanged
+import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.blackhito.domain.preferences_storage.getBalanceFromCharCode
@@ -22,12 +23,7 @@ class CurrencyFirstFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentCurrencyBinding.inflate(layoutInflater, container, false)
-        return binding.root
-    }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        binding.textViewSign.text = getString(R.string.minus_sign)
         viewModel.lowerCurrency.observe(viewLifecycleOwner) {
             binding.changeRatio.text = getString(
                 R.string.exchange_rate,
@@ -36,6 +32,7 @@ class CurrencyFirstFragment : Fragment() {
                 Utils.getCurrencySymbol(it.charCode)
             )
         }
+
         viewModel.upperCurrency.observe(viewLifecycleOwner) {
             binding.currencyName.text = it.charCode
             binding.currencyUserAmount.text = getString(
@@ -52,18 +49,34 @@ class CurrencyFirstFragment : Fragment() {
         }
 
         viewModel.userUpperInput.observe(viewLifecycleOwner) {
+            Log.e("userUpperInput", "$it ${viewModel.userLowerInput.value}")
             if (it.isEmpty())
                 binding.textViewSign.visibility = View.INVISIBLE
             else
                 binding.textViewSign.visibility = View.VISIBLE
+
+            val selection = binding.currencyAmount.selectionEnd
+            val length = it.length
             if (binding.currencyAmount.text.toString() != it)
-                binding.currencyAmount.setText(it)
+                binding.currencyAmount.setText(
+                    it.toString()
+                )
+            binding.currencyAmount.setSelection(
+                selection.coerceAtMost(length)
+            )
         }
 
-        binding.currencyAmount.doAfterTextChanged {
-            viewModel.upperFieldInput = it.toString()
-            viewModel.updateInputField(true)
-            binding.currencyAmount.setSelection(it.toString().length)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.textViewSign.text = getString(R.string.minus_sign)
+
+        binding.currencyAmount.addTextChangedListener {
+            viewModel.setUpperInputField(it.toString())
+            //viewModel.updateInputField(true)
         }
+        binding.currencyAmount.setSelection(binding.currencyAmount.text.length)
     }
 }
