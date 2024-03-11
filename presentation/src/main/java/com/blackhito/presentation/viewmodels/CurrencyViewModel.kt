@@ -52,8 +52,8 @@ class CurrencyViewModel @Inject constructor(
     var upperToLowerRatio = 0.0
     var lowerToUpperRatio = 0.0
 
-    var upperFieldInput = ""
-    var lowerFieldInput = ""
+//    var upperFieldInput = ""
+//    var lowerFieldInput = ""
 
     private val _upperFieldInput = MutableLiveData("")
     val userUpperInput: LiveData<String> = _upperFieldInput
@@ -81,6 +81,34 @@ class CurrencyViewModel @Inject constructor(
         }
     }
 
+    fun setUpperInputField(newValue: String) {
+        if (newValue == userUpperInput.value)
+            return
+        if (newValue == "0.0") {
+            _upperFieldInput.value = ""
+            _lowerFieldInput.value = ""
+        }
+        _upperFieldInput.value = newValue
+        _lowerFieldInput.value = if (_upperFieldInput.value?.isNotEmpty() == true)
+            _upperFieldInput.value?.toDouble()?.times(upperToLowerRatio).toString()
+        else
+            ""
+    }
+
+    fun setLowerInputField(newValue: String) {
+        if (newValue == userLowerInput.value)
+            return
+        if (newValue == "0.0") {
+            _lowerFieldInput.value = ""
+            _upperFieldInput.value = ""
+        }
+        _lowerFieldInput.value = newValue
+        _upperFieldInput.value = if (_lowerFieldInput.value?.isNotEmpty() == true)
+            _lowerFieldInput.value?.toDouble()?.times(lowerToUpperRatio).toString()
+        else
+            ""
+    }
+
     private fun updateRatio(
         upperNewValue: CurrencyPresentation?,
         lowerNewValue: CurrencyPresentation?
@@ -91,25 +119,25 @@ class CurrencyViewModel @Inject constructor(
         lowerToUpperRatio = String.format("%.2f", lowerBaseValue / upperBaseValue).toDouble()
     }
 
-    fun updateInputField(isFocusOnFirstWindow: Boolean) {
-        Log.e("LOG", "$upperFieldInput $lowerFieldInput")
-        if (isFocusOnFirstWindow) {
-            lowerFieldInput = if (upperFieldInput.isEmpty())
-                ""
-            else {
-                String.format("%.2f",upperFieldInput.toDouble() * upperToLowerRatio)
-            }
-            _lowerFieldInput.postValue(lowerFieldInput)
-        } else {
-            upperFieldInput = if (lowerFieldInput.isEmpty())
-                ""
-            else {
-                String.format("%.2f",lowerFieldInput.toDouble() * lowerToUpperRatio)
-            }
-            _upperFieldInput.postValue(upperFieldInput)
-        }
-        Log.e("LOG", "$upperFieldInput $lowerFieldInput")
-    }
+//    fun updateInputField(isFocusOnFirstWindow: Boolean) {
+//        Log.e("LOG", "$upperFieldInput $lowerFieldInput")
+//        if (isFocusOnFirstWindow) {
+//            lowerFieldInput = if (upperFieldInput.isEmpty())
+//                ""
+//            else {
+//                (upperFieldInput.toDouble() * upperToLowerRatio).toString()
+//            }
+//            _lowerFieldInput.postValue(lowerFieldInput)
+//        } else {
+//            upperFieldInput = if (lowerFieldInput.isEmpty())
+//                ""
+//            else {
+//                (lowerFieldInput.toDouble() * lowerToUpperRatio).toString()
+//            }
+//            _upperFieldInput.postValue(upperFieldInput)
+//        }
+//        Log.e("LOG", "$upperFieldInput $lowerFieldInput")
+//    }
 
     private fun loadCurrencyFromNetwork() = viewModelScope.launch {
         val listOfCurrency =
@@ -132,6 +160,8 @@ class CurrencyViewModel @Inject constructor(
     }
 
     fun checkRequirementsForTransaction() {
+        val upperFieldInput = _upperFieldInput.value ?: ""
+        val lowerFieldInput = _lowerFieldInput.value ?: ""
         val upperCurrency = upperCurrency.value ?: emptyCurrency
         val lowerCurrency = lowerCurrency.value ?: emptyCurrency
         if (upperCurrency.charCode == lowerCurrency.charCode) {
@@ -212,6 +242,12 @@ class CurrencyViewModel @Inject constructor(
                 listCurrency.value?.get(lowerPosition)
             )
             _upperCurrency.value = listCurrency.value?.get(upperPosition)
+
+            _upperFieldInput.value = if (_upperFieldInput.value?.isEmpty() == true)
+                ""
+            else {
+                _lowerFieldInput.value?.toDouble()?.times(lowerToUpperRatio).toString()
+            }
         } else {
             lowerPosition = newPosition
             updateRatio(
@@ -219,9 +255,13 @@ class CurrencyViewModel @Inject constructor(
                 listCurrency.value?.get(lowerPosition)
             )
             _lowerCurrency.value = listCurrency.value?.get(lowerPosition)
-        }
 
-        //updateInputField(!isUpperWindow)
+            _lowerFieldInput.value = if (_lowerFieldInput.value?.isEmpty() == true)
+                ""
+            else {
+                _upperFieldInput.value?.toDouble()?.times(upperToLowerRatio).toString()
+            }
+        }
     }
 
     private fun updateCurrencyFromList() {
