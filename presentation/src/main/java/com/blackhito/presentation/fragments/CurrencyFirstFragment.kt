@@ -1,7 +1,6 @@
 package com.blackhito.presentation.fragments
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -49,7 +48,7 @@ class CurrencyFirstFragment : Fragment() {
         }
 
         viewModel.userUpperInput.observe(viewLifecycleOwner) {
-            Log.e("userUpperInput", "$it ${viewModel.userLowerInput.value}")
+            Utils.setEditTextInputSize(it.length, binding.currencyAmount)
             if (it.isEmpty())
                 binding.textViewSign.visibility = View.INVISIBLE
             else
@@ -66,15 +65,12 @@ class CurrencyFirstFragment : Fragment() {
             )
         }
 
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
         binding.textViewSign.text = getString(R.string.minus_sign)
 
         binding.currencyAmount.addTextChangedListener {
             viewModel.setUpperInputField(it.toString())
         }
+
+        return binding.root
     }
 }

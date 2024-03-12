@@ -47,6 +47,7 @@ class CurrencySecondFragment : Fragment() {
         }
 
         viewModel.userLowerInput.observe(viewLifecycleOwner) {
+            Utils.setEditTextInputSize(it.length, binding.currencyAmount)
             if (it.isEmpty())
                 binding.textViewSign.visibility = View.INVISIBLE
             else
@@ -62,15 +63,12 @@ class CurrencySecondFragment : Fragment() {
                 selection.coerceAtMost(length)
             )
         }
-        return binding.root
-    }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
         binding.textViewSign.text = getString(R.string.plus_sign)
 
         binding.currencyAmount.addTextChangedListener {
             viewModel.setLowerInputField(it.toString())
         }
+        return binding.root
     }
 }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.DecimalFormat
 import javax.inject.Inject
 
 @HiltViewModel
@@ -85,7 +86,7 @@ class CurrencyViewModel @Inject constructor(
         }
         _upperFieldInput.value = newValue
         _lowerFieldInput.value = if (_upperFieldInput.value?.isNotEmpty() == true)
-            upperToLowerRatio.times(newValue.toBigDecimal()).toString()
+            decimalFormat.format(upperToLowerRatio.times(newValue.toBigDecimal()))
         else
             ""
     }
@@ -99,7 +100,7 @@ class CurrencyViewModel @Inject constructor(
         }
         _lowerFieldInput.value = newValue
         _upperFieldInput.value = if (_lowerFieldInput.value?.isNotEmpty() == true)
-            lowerToUpperRatio.times(newValue.toBigDecimal()).toString()
+            decimalFormat.format(lowerToUpperRatio.times(newValue.toBigDecimal()))
         else
             ""
     }
@@ -250,7 +251,7 @@ class CurrencyViewModel @Inject constructor(
         val currencyListName = listOf(
             "USD", "JPY", "TRY", "RSD", "CAD"
         )
-
-        val emptyCurrency = CurrencyPresentation("", "", "")
+        private val decimalFormat = DecimalFormat("0.#")
+        private val emptyCurrency = CurrencyPresentation("", "", "")
     }
 }
