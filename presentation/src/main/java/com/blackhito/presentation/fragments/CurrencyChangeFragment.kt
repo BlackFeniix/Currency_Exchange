@@ -1,7 +1,6 @@
 package com.blackhito.presentation.fragments
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -81,14 +80,12 @@ class CurrencyChangeFragment : Fragment() {
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                Log.e("LOG", "Upper pager - $position")
                 viewModel.updatePosition(position, true)
             }
         })
         viewPager2.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                Log.e("LOG", "Lower pager - $position")
                 viewModel.updatePosition(position,false)
             }
         })

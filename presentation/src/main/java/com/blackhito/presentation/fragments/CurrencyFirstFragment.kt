@@ -75,8 +75,6 @@ class CurrencyFirstFragment : Fragment() {
 
         binding.currencyAmount.addTextChangedListener {
             viewModel.setUpperInputField(it.toString())
-            //viewModel.updateInputField(true)
         }
-        binding.currencyAmount.setSelection(binding.currencyAmount.text.length)
     }
 }

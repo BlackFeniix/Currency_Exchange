@@ -71,8 +71,6 @@ class CurrencySecondFragment : Fragment() {
 
         binding.currencyAmount.addTextChangedListener {
             viewModel.setLowerInputField(it.toString())
-            //viewModel.updateInputField(false)
         }
-        binding.currencyAmount.setSelection(binding.currencyAmount.text.length)
     }
 }
