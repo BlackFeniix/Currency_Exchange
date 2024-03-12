@@ -1,7 +1,6 @@
 package com.blackhito.presentation.viewmodels
 
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -21,6 +20,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.math.RoundingMode
 import javax.inject.Inject
 
 @HiltViewModel
@@ -49,35 +50,29 @@ class CurrencyViewModel @Inject constructor(
     var upperPosition: Int = 0
     var lowerPosition: Int = 0
 
-    var upperToLowerRatio = 0.0
-    var lowerToUpperRatio = 0.0
-
-//    var upperFieldInput = ""
-//    var lowerFieldInput = ""
+    var upperToLowerRatio = BigDecimal.ZERO
+    var lowerToUpperRatio = BigDecimal.ZERO
 
     private val _upperFieldInput = MutableLiveData("")
     val userUpperInput: LiveData<String> = _upperFieldInput
     private val _lowerFieldInput = MutableLiveData("")
     val userLowerInput: LiveData<String> = _lowerFieldInput
 
-
     var userBalance = prefStorage.getUserBalance()
 
     fun updateAllDataRegularly() = viewModelScope.launch {
         loadCurrencyFromNetwork()
-        while (true) {
+        while (networkStateFlow.value != NetworkState.NetworkError()) {
             delay(30000)
 
             val listOfCurrency =
                 repository.loadCurrency()
                     .valutes.filterKeys { currencyListName.contains(it) }
                     .values.map { it.toPresentation() }
-
-            Log.e("LOG", listOfCurrency.toString())
             _listCurrency.value = listOfCurrency
 
             updateCurrencyFromList()
-            updateRatio(listCurrency.value?.get(0), listCurrency.value?.get(0))
+            updateRatio(listCurrency.value?.get(upperPosition), listCurrency.value?.get(lowerPosition))
         }
     }
 
@@ -90,7 +85,7 @@ class CurrencyViewModel @Inject constructor(
         }
         _upperFieldInput.value = newValue
         _lowerFieldInput.value = if (_upperFieldInput.value?.isNotEmpty() == true)
-            _upperFieldInput.value?.toDouble()?.times(upperToLowerRatio).toString()
+            upperToLowerRatio.times(newValue.toBigDecimal()).toString()
         else
             ""
     }
@@ -104,7 +99,7 @@ class CurrencyViewModel @Inject constructor(
         }
         _lowerFieldInput.value = newValue
         _upperFieldInput.value = if (_lowerFieldInput.value?.isNotEmpty() == true)
-            _lowerFieldInput.value?.toDouble()?.times(lowerToUpperRatio).toString()
+            lowerToUpperRatio.times(newValue.toBigDecimal()).toString()
         else
             ""
     }
@@ -113,44 +108,28 @@ class CurrencyViewModel @Inject constructor(
         upperNewValue: CurrencyPresentation?,
         lowerNewValue: CurrencyPresentation?
     ) {
-        val upperBaseValue = upperNewValue?.baseValue?.toDouble() ?: 0.0
-        val lowerBaseValue = lowerNewValue?.baseValue?.toDouble() ?: 0.0
-        upperToLowerRatio = String.format("%.2f", upperBaseValue / lowerBaseValue).toDouble()
-        lowerToUpperRatio = String.format("%.2f", lowerBaseValue / upperBaseValue).toDouble()
+        val upperBaseValue = upperNewValue?.baseValue?.toBigDecimal() ?: BigDecimal.ZERO
+        val lowerBaseValue = lowerNewValue?.baseValue?.toBigDecimal() ?: BigDecimal.ZERO
+        upperToLowerRatio =  (upperBaseValue / lowerBaseValue).setScale(2, RoundingMode.HALF_EVEN)
+        lowerToUpperRatio = (lowerBaseValue / upperBaseValue).setScale(2, RoundingMode.HALF_EVEN)
     }
 
-//    fun updateInputField(isFocusOnFirstWindow: Boolean) {
-//        Log.e("LOG", "$upperFieldInput $lowerFieldInput")
-//        if (isFocusOnFirstWindow) {
-//            lowerFieldInput = if (upperFieldInput.isEmpty())
-//                ""
-//            else {
-//                (upperFieldInput.toDouble() * upperToLowerRatio).toString()
-//            }
-//            _lowerFieldInput.postValue(lowerFieldInput)
-//        } else {
-//            upperFieldInput = if (lowerFieldInput.isEmpty())
-//                ""
-//            else {
-//                (lowerFieldInput.toDouble() * lowerToUpperRatio).toString()
-//            }
-//            _upperFieldInput.postValue(upperFieldInput)
-//        }
-//        Log.e("LOG", "$upperFieldInput $lowerFieldInput")
-//    }
-
     private fun loadCurrencyFromNetwork() = viewModelScope.launch {
-        val listOfCurrency =
-            repository.loadCurrency()
-                .valutes.filterKeys { currencyListName.contains(it) }
-                .values.map { it.toPresentation() }
+        try {
+            val listOfCurrency =
+                repository.loadCurrency()
+                    .valutes.filterKeys { currencyListName.contains(it) }
+                    .values.map { it.toPresentation() }
 
-        Log.e("LOG", listOfCurrency.toString())
-        _listCurrency.value = listOfCurrency
+            _listCurrency.value = listOfCurrency
 
-        updateCurrencyFromList()
-        if (_networkStateFlow.value != NetworkState.NetworkSuccess())
-            _networkStateFlow.value = NetworkState.NetworkSuccess()
+            updateCurrencyFromList()
+            if (_networkStateFlow.value != NetworkState.NetworkSuccess())
+                _networkStateFlow.value = NetworkState.NetworkSuccess()
+        } catch (e:Exception) {
+            _networkStateFlow.value = NetworkState.NetworkError()
+        }
+
     }
 
     private fun updateBalance() {
@@ -245,9 +224,8 @@ class CurrencyViewModel @Inject constructor(
 
             _upperFieldInput.value = if (_upperFieldInput.value?.isEmpty() == true)
                 ""
-            else {
-                _lowerFieldInput.value?.toDouble()?.times(lowerToUpperRatio).toString()
-            }
+            else
+                (lowerToUpperRatio).times(userLowerInput.value?.toBigDecimal()?:BigDecimal.ZERO).toString()
         } else {
             lowerPosition = newPosition
             updateRatio(
@@ -258,9 +236,8 @@ class CurrencyViewModel @Inject constructor(
 
             _lowerFieldInput.value = if (_lowerFieldInput.value?.isEmpty() == true)
                 ""
-            else {
-                _upperFieldInput.value?.toDouble()?.times(upperToLowerRatio).toString()
-            }
+            else
+                (upperToLowerRatio).times(_upperFieldInput.value?.toBigDecimal()?: BigDecimal.ZERO).toString()
         }
     }
 
