@@ -1,7 +1,6 @@
 package com.blackhito.presentation.viewmodels
 
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -61,7 +60,7 @@ class CurrencyViewModel @Inject constructor(
     val userLowerInput: LiveData<String> = _lowerFieldInput
 
     var userBalance = prefStorage.getUserBalance()
-    val decimalFormat = DecimalFormat("0.#")
+
     fun updateAllDataRegularly() = viewModelScope.launch {
         loadCurrencyFromNetwork()
         while (networkStateFlow.value != NetworkState.NetworkError()) {
@@ -114,8 +113,6 @@ class CurrencyViewModel @Inject constructor(
         val lowerBaseValue = lowerNewValue?.baseValue?.toBigDecimal() ?: BigDecimal.ZERO
         upperToLowerRatio =  (upperBaseValue / lowerBaseValue).setScale(2, RoundingMode.HALF_EVEN)
         lowerToUpperRatio = (lowerBaseValue / upperBaseValue).setScale(2, RoundingMode.HALF_EVEN)
-
-        Log.e("LOG", "Ratio - $upperToLowerRatio - $lowerToUpperRatio")
     }
 
     private fun loadCurrencyFromNetwork() = viewModelScope.launch {
@@ -254,7 +251,7 @@ class CurrencyViewModel @Inject constructor(
         val currencyListName = listOf(
             "USD", "JPY", "TRY", "RSD", "CAD"
         )
-
-        val emptyCurrency = CurrencyPresentation("", "", "")
+        private val decimalFormat = DecimalFormat("0.#")
+        private val emptyCurrency = CurrencyPresentation("", "", "")
     }
 }
