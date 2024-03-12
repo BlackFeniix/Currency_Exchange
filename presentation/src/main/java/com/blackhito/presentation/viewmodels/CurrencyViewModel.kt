@@ -1,6 +1,7 @@
 package com.blackhito.presentation.viewmodels
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.DecimalFormat
 import javax.inject.Inject
 
 @HiltViewModel
@@ -59,7 +61,7 @@ class CurrencyViewModel @Inject constructor(
     val userLowerInput: LiveData<String> = _lowerFieldInput
 
     var userBalance = prefStorage.getUserBalance()
-
+    val decimalFormat = DecimalFormat("0.#")
     fun updateAllDataRegularly() = viewModelScope.launch {
         loadCurrencyFromNetwork()
         while (networkStateFlow.value != NetworkState.NetworkError()) {
@@ -85,7 +87,7 @@ class CurrencyViewModel @Inject constructor(
         }
         _upperFieldInput.value = newValue
         _lowerFieldInput.value = if (_upperFieldInput.value?.isNotEmpty() == true)
-            upperToLowerRatio.times(newValue.toBigDecimal()).toString()
+            decimalFormat.format(upperToLowerRatio.times(newValue.toBigDecimal()))
         else
             ""
     }
@@ -99,7 +101,7 @@ class CurrencyViewModel @Inject constructor(
         }
         _lowerFieldInput.value = newValue
         _upperFieldInput.value = if (_lowerFieldInput.value?.isNotEmpty() == true)
-            lowerToUpperRatio.times(newValue.toBigDecimal()).toString()
+            decimalFormat.format(lowerToUpperRatio.times(newValue.toBigDecimal()))
         else
             ""
     }
@@ -112,6 +114,8 @@ class CurrencyViewModel @Inject constructor(
         val lowerBaseValue = lowerNewValue?.baseValue?.toBigDecimal() ?: BigDecimal.ZERO
         upperToLowerRatio =  (upperBaseValue / lowerBaseValue).setScale(2, RoundingMode.HALF_EVEN)
         lowerToUpperRatio = (lowerBaseValue / upperBaseValue).setScale(2, RoundingMode.HALF_EVEN)
+
+        Log.e("LOG", "Ratio - $upperToLowerRatio - $lowerToUpperRatio")
     }
 
     private fun loadCurrencyFromNetwork() = viewModelScope.launch {
