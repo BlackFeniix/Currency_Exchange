@@ -60,7 +60,10 @@ class CurrencyChangeFragment : Fragment() {
                             showViewPager()
                         }
 
-                        is NetworkState.NetworkError -> {}
+                        is NetworkState.NetworkError -> {
+                            binding.progressBar.visibility = View.INVISIBLE
+                            binding.textViewNetworkError.visibility = View.VISIBLE
+                        }
                     }
                 }
             }

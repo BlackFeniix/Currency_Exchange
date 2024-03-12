@@ -62,7 +62,7 @@ class CurrencyViewModel @Inject constructor(
 
     fun updateAllDataRegularly() = viewModelScope.launch {
         loadCurrencyFromNetwork()
-        while (true) {
+        while (networkStateFlow.value != NetworkState.NetworkError()) {
             delay(30000)
 
             val listOfCurrency =
@@ -115,16 +115,21 @@ class CurrencyViewModel @Inject constructor(
     }
 
     private fun loadCurrencyFromNetwork() = viewModelScope.launch {
-        val listOfCurrency =
-            repository.loadCurrency()
-                .valutes.filterKeys { currencyListName.contains(it) }
-                .values.map { it.toPresentation() }
+        try {
+            val listOfCurrency =
+                repository.loadCurrency()
+                    .valutes.filterKeys { currencyListName.contains(it) }
+                    .values.map { it.toPresentation() }
 
-        _listCurrency.value = listOfCurrency
+            _listCurrency.value = listOfCurrency
 
-        updateCurrencyFromList()
-        if (_networkStateFlow.value != NetworkState.NetworkSuccess())
-            _networkStateFlow.value = NetworkState.NetworkSuccess()
+            updateCurrencyFromList()
+            if (_networkStateFlow.value != NetworkState.NetworkSuccess())
+                _networkStateFlow.value = NetworkState.NetworkSuccess()
+        } catch (e:Exception) {
+            _networkStateFlow.value = NetworkState.NetworkError()
+        }
+
     }
 
     private fun updateBalance() {
