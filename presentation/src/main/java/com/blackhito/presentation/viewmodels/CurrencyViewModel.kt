@@ -99,7 +99,7 @@ class CurrencyViewModel @Inject constructor(
         }
         _lowerFieldInput.value = newValue
         _upperFieldInput.value = if (_lowerFieldInput.value?.isNotEmpty() == true)
-            (lowerToUpperRatio).times(newValue.toBigDecimal()).toString()
+            lowerToUpperRatio.times(newValue.toBigDecimal()).toString()
         else
             ""
     }
@@ -222,11 +222,10 @@ class CurrencyViewModel @Inject constructor(
             )
             _upperCurrency.value = listCurrency.value?.get(upperPosition)
 
-            val newUpperFieldValue = if (_upperFieldInput.value?.isEmpty() == true)
+            _upperFieldInput.value = if (_upperFieldInput.value?.isEmpty() == true)
                 ""
             else
                 (lowerToUpperRatio).times(userLowerInput.value?.toBigDecimal()?:BigDecimal.ZERO).toString()
-            _upperFieldInput.postValue(newUpperFieldValue)
         } else {
             lowerPosition = newPosition
             updateRatio(
@@ -235,11 +234,10 @@ class CurrencyViewModel @Inject constructor(
             )
             _lowerCurrency.value = listCurrency.value?.get(lowerPosition)
 
-            val newLowerInputValue = if (_lowerFieldInput.value?.isEmpty() == true)
+            _lowerFieldInput.value = if (_lowerFieldInput.value?.isEmpty() == true)
                 ""
             else
                 (upperToLowerRatio).times(_upperFieldInput.value?.toBigDecimal()?: BigDecimal.ZERO).toString()
-            _lowerFieldInput.postValue(newLowerInputValue)
         }
     }
 
